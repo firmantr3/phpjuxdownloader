@@ -8,12 +8,58 @@
     $ref = "http://www.joox.com";
     $u_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36";
     $callback = "MusicInfoCallback";
-    $curlnya = new mycurl("http://api.joox.com/web-fcgi-bin/web_get_songinfo?songid=$sid&lang=id&country=id&from_type=1&channel_id=199&_=$tsnow");
+    $curlnya = new mycurl("https://api.joox.co.th/openjoox/v1/track/{$sid}?country=id&lang=id&lyric=1");
     $curlnya->createCurl();
     $response = $curlnya->__tostring();
-    $data = json_decode(str_replace(")","",(str_replace("$callback(","",$curlnya->__tostring()))),true);
-    //print_r($data);exit;
-    $file_url = $data['m4aUrl'];
+    $data = json_decode($response, true);
+    
+    $files = [
+        'mp3' => [
+            'quality' => 0,
+            'url' => null,
+        ],
+        'm4a' => [
+            'quality' => 0,
+            'url' => null,
+        ],
+    ];
+
+    if(isset($data['play_url_v2'])) {
+        foreach ($data['play_url_v2'] as $key => $value) {
+            // file ext check
+            // m4a
+            if(strpos($value['url'], '.m4a') !== false) {
+                if($value['quality'] > $files['m4a']['quality']) {
+                    $files['m4a']['quality'] = $value['quality'];
+                    $files['m4a']['url'] = $value['url'];
+                }
+            }
+            // mp3
+            else {
+                if($value['quality'] > $files['mp3']['quality']) {
+                    $files['mp3']['quality'] = $value['quality'];
+                    $files['mp3']['url'] = $value['url'];
+                }
+            }
+        }
+    }
+    elseif(isset($data['play_url'])) {
+        // file ext check
+        // m4a
+        if(strpos($value['standard_play_url'], '.m4a') !== false) {
+            $files['m4a']['url'] = $value['standard_play_url'];
+        }
+        // mp3
+        else {
+            $files['mp3']['url'] = $value['standard_play_url'];
+        }
+    }
+    else {
+        throw new Exception('failed to get data!', 422);
+    }
+
+    $file_url = $files['m4a']['url'];
+
     if(isset($_GET['ajax'])) {
         $data['fname'] = $fname;
         header('Content-Type: application/json');
@@ -21,44 +67,12 @@
     }
     else {
         if(isset($_GET['mp3'])) {
-            /*
-            $tmp_fname = md5($fname);
-            
-            if(!file_exists("tmp/".$tmp_fname."r.mp3")) {
-                if(!file_exists("tmp/$tmp_fname" . "r.m4a")) {
-                    file_put_contents("tmp/$tmp_fname.m4a",file_get_contents($file_url));
-                    if(!file_exists("tmp/$tmp_fname" . "r.m4a")) {
-                        rename("tmp/$tmp_fname.m4a","tmp/$tmp_fname" . "r.m4a");
-                    }
-                    echo exec("ffmpeg/ffmpeg -v 5 -y -i tmp/".$tmp_fname."r.m4a -acodec libmp3lame -ac 2 -ab 128k -id3v2_version 3 -write_id3v1 1 -map_metadata 0 -metadata title=\"$_GET[title]\" -metadata artist=\"$_GET[artist]\" -metadata album=\"$_GET[album]\" -metadata encoded_by=\"JOOXeCROT FFmpeg\" tmp/".$tmp_fname.".mp3");
-                    rename("tmp/$tmp_fname.mp3","tmp/$tmp_fname" . "r.mp3");
-                    unlink("tmp/$tmp_fname" . "r.m4a");
-                }
-                else {
-                    while(!file_exists("tmp/".$tmp_fname."r.mp3")) {
-                        sleep(10);
-                    }
-                }
-            }
-            
-            if(file_exists("tmp/".$tmp_fname."r.mp3")) {
-                header("Pragma: public");
-                header('Content-Type: application/octet-stream');
-                header("Content-Transfer-Encoding: Binary"); 
-                header("Content-Disposition: attachment; filename=\"" . urldecode($fname) . ".mp3\""); 
-                header('Content-Length: ' . filesize("tmp/".$tmp_fname."r.mp3")); // Add this line
-                readfile("tmp/".$tmp_fname."r.mp3");
-                
-                if(file_exists("tmp/$tmp_fname" . "r.m4a")) {
-                    unlink("tmp/$tmp_fname" . "r.m4a");
-                }
-            }*/
+            $file_url = $files['mp3']['url'];
             
             header("Pragma: public");
             header('Content-Type: application/octet-stream');
             header("Content-Transfer-Encoding: Binary"); 
             header("Content-Disposition: attachment; filename=\"" . urldecode($fname) . ".mp3\"");
-            $file_url = $data['mp3Url'];
             readfile($file_url);
         }
         else {
