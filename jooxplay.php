@@ -12,7 +12,7 @@
     $curlnya->createCurl();
     $response = $curlnya->__tostring();
     $data = json_decode($response, true);
-    
+
     $files = [
         'mp3' => [
             'quality' => 0,
@@ -55,7 +55,8 @@
         }
     }
     else {
-        throw new Exception('failed to get data!', 422);
+        http_response_code(404);
+        throw new Exception('failed to get data!', 404);
     }
 
     $file_url = $files['m4a']['url'];
@@ -68,6 +69,12 @@
     else {
         if(isset($_GET['mp3'])) {
             $file_url = $files['mp3']['url'];
+
+            if(!$file_url) {
+                http_response_code(404);
+                echo '<h1>mp3 not found! Try m4a instead!</h1>';
+                exit;
+            }
             
             header("Pragma: public");
             header('Content-Type: application/octet-stream');
